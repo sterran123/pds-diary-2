@@ -940,6 +940,11 @@ function accountModal() {
       }
     });
 
+    const loBtn = el('button', 'btn secondary', '로그아웃 — 이 기기 세션 끊기');
+    loBtn.style.marginTop = '10px';
+    loBtn.addEventListener('click', async () => { await Store.signOut(); location.reload(); });
+    sheet.append(loBtn);
+
     const dz = el('div', 'card danger-zone');
     dz.style.marginTop = '18px';
     dz.append(el('div', 'metric-name', '계정 삭제'));
