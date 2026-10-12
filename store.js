@@ -191,6 +191,7 @@ export function normalizeDoc(data) {
   if (!data) return null;
   const doc = { ...emptyDoc(), ...data };
   for (const key of COLLECTIONS) doc[key] = asArr(doc[key]);
+  for (const t of doc.tasks) if (!Array.isArray(t.tags)) t.tags = [];
   return doc;
 }
 
