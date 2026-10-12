@@ -1,30 +1,35 @@
-# 플랜두씨 다이어리 1 — 내 계획과 실제를 담는 앱
+# 플랜두씨 다이어리 2 — 로그인이 붙은 잠긴 다이어리
 
-계획(Plan) → 실제로 한 일(Do) → 돌아보기(See)가 하나로 이어지는 다이어리입니다.
-로그인이 없습니다 — 링크를 아는 사람은 누구나 읽고 쓸 수 있습니다.
+계획(Plan) → 실제로 한 일(Do) → 돌아보기(See)가 하나로 이어지는 다이어리의 잠금 버전입니다.
+**첫 화면은 로그인 화면**이고, 내 기록은 로그인한 본인만 볼 수 있습니다. 남의 기록은 서버가 거절합니다.
 
-- 공개 결과물: https://sterran123.github.io/pds-diary/
-- 소스 저장소: https://github.com/sterran123/pds-diary
+- 공개 결과물: https://sterran123.github.io/pds-diary-2/ (계정 없이 열면 로그인 화면만 보입니다)
+- 소스 저장소: https://github.com/sterran123/pds-diary-2
+- 이어 받은 원본: 과제6 `pds-diary` 최종 제출 커밋 `ad6fdee` (이 저장소의 Git 이력에 그대로 남아 있습니다)
+- 인증 설명서: [docs/AUTH.md](docs/AUTH.md) — 무엇을 골랐는지·왜·어디를 고쳤는지·거절 증거·못 막은 것
+- 데이터 계약: [contracts/pds-schema-v3.json](contracts/pds-schema-v3.json)
 
 ## 구조
 
 - `index.html` · `styles.css` · `app.js` — 순수 HTML/CSS/JavaScript(ES 모듈). 빌드 없음.
-- `store.js` — 서버 저장소 어댑터. kvdb.io 호스팅 KV 저장소의 단일 문서(`pds-diary-v1` 키)를
-  읽고(read) → 바꾸고(modify) → 통째로 덮어씁니다(PUT). 모든 변경은 이 경로로 직렬화됩니다.
-- `contracts/pds-schema-v2.json` — 최종 데이터베이스 계약: 6개 컬렉션의 필드·관계·날짜 규칙·집계 규칙.
-- `.github/workflows/pages.yml` — GitHub Pages 배포(Actions 빌드 방식).
+- `firebase-config.js` — Firebase 공개 클라이언트 설정(apiKey는 비밀이 아닌 프로젝트 식별자).
+- `store.js` — 인증+저장소 어댑터. Firebase Authentication과 Firestore를 REST로 직접 호출합니다.
+  모든 자료 쓰기는 "읽기 → 바꾸기 → 통째로 덮어쓰기(PATCH)"로 직렬화됩니다.
+- `firestore.rules` — 서버 측 잠금 규칙. 본인 문서만, 그리고 로그아웃 이후 발급된 토큰만 통과.
+- `contracts/` — v2(과제6 원본 참고용)와 v3(이번 버전) 계약.
 
-## 서버 저장소
+## 인증·잠금 한눈에 보기
 
-- 엔진: Firebase Realtime Database (프로젝트 `pds-diary-sterran`), 경로 `/pds-diary-v1`에 문서 하나로 저장.
-- 보안 규칙 `{".read":true,".write":true}` — 로그인 없는 공개 앱 계약에 맞춘 공개 읽기·쓰기. 링크를 아는 사람의 읽기·쓰기는 과제 계약입니다.
-- 읽기는 `GET .../pds-diary-v1.json`, 쓰기는 `PUT`(읽기→변형→덮어쓰기 직렬화). 새로고침하면 서버에서 같은 값이 복원됩니다.
-- 코드·배포 파일·Git 기록 어디에도 비밀값 원문이 없습니다(공개 DB URL은 비밀이 아니라 접근 주소).
+- 로그인/가입/로그아웃은 Firebase Authentication(이메일·비밀번호)이 합니다.
+- 비밀번호는 Firebase가 해시+소금으로 보관합니다 — 이 저장소·Firestore·어디에도 원문이 없습니다.
+- ID 토큰(JWT, 1시간 만료)은 `Authorization: Bearer` 헤더로만 이동합니다. 주소창에 안 실립니다.
+- Firestore 보안 규칙이 토큰의 `uid`와 문서 경로의 `uid`를 대조해 본인 문서만 열어 줍니다.
+- 로그아웃·비밀번호 변경 시 문서의 `revokedAtSec`가 갱신되고, 규칙이 그보다 먼저 발급된 토큰을 거절합니다.
+- 계정을 지우면 자료 문서도 함께 지워집니다(계정 설정 모달에서 확인).
 
-## 동작 규칙 핵심
+## 5일 사용 규칙 (과제 요구 반영)
 
-- 계획을 고치면 `plan_revisions`에 새 행이 쌓이고 rev 0(처음 계획)은 절대 덮어쓰지 않습니다.
-- 완료는 멱등키 `complete:<task_id>` 한 건만 남습니다 — 연속 클릭·중복 요청에도 기록 1건.
-- 실행 기록(시작·끝·실제 시간·막힌 이유)은 계획 값과 별개 컬렉션에 쌓입니다.
-- 돌아보기 집계는 화면에서 숫자를 누르면 근거 기록 목록으로 갑니다.
-- 화면 표시는 `textContent`만 사용 — 스크립트 모양 글자도 글자 그대로 보입니다.
+- 기록 탭의 "오늘의 지표"에서 날짜·값·메모를 남깁니다 — 날짜별 최신 1건이 집계에 씁니다.
+- 지표 설정(질문·지표·단위·계산 규칙·주 시작 요일)은 첫 로그인 때 한 번 정합니다.
+- 계획 규칙 변경은 계획 탭 "규칙 바꾸기"로만 — 변경 시각·이유·전후가 `rule_changes`에 남습니다.
+- 돌아보기의 지표 합계·평균은 계약의 집계 규칙(빠진 날 제외·중복 최신·이상치 제외·소수 첫째 반올림)대로 계산되고, 숫자를 누르면 근거 기록이 열립니다.

@@ -4,13 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>플랜두씨 다이어리 — 계획 · 실행 · 돌아보기</title>
-<meta name="description" content="계획(Plan) → 실제로 한 일(Do) → 돌아보기(See)가 하나로 이어지는 공개 다이어리">
+<title>플랜두씨 다이어리 2 — 로그인이 필요한 다이어리</title>
+<meta name="description" content="계획(Plan) → 실제로 한 일(Do) → 돌아보기(See). 로그인한 본인만 여는 다이어리">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 </head>
-<body>
+<body class="locked">
+
+<!-- ══ 로그인 게이트 — 로그인 전 첫 화면 ══ -->
+<section class="auth-gate" id="authGate" aria-label="로그인">
+  <div class="auth-card">
+    <div class="brand auth-brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <div>
+        <strong>플랜두씨 다이어리 2</strong>
+        <span>잠긴 Plan · Do · See 다이어리</span>
+      </div>
+    </div>
+    <p class="auth-note">
+      이 다이어리는 계정 없이는 열 수 없습니다. 내 기록은 로그인 뒤에만 보이고,
+      다른 계정의 기록은 서버가 거절합니다.
+    </p>
+    <div class="auth-tabs" role="tablist">
+      <button class="auth-tab on" id="tabLogin" type="button" role="tab" aria-selected="true">로그인</button>
+      <button class="auth-tab" id="tabSignup" type="button" role="tab" aria-selected="false">가입</button>
+    </div>
+    <form id="authForm" novalidate>
+      <label class="auth-field">
+        <span>이메일</span>
+        <input type="email" id="authEmail" autocomplete="email" required placeholder="me@example.com">
+      </label>
+      <label class="auth-field">
+        <span>비밀번호 <small id="pwHint">(6자 이상)</small></span>
+        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="••••••••">
+      </label>
+      <p class="auth-error" id="authError" role="alert" hidden></p>
+      <button class="btn auth-submit" id="authSubmit" type="submit">로그인</button>
+    </form>
+    <p class="auth-foot">가입하면 이메일·비밀번호는 Firebase Authentication이 맡아 관리합니다 — 이 앱의 소스·데이터베이스 어디에도 비밀번호 원문이 저장되지 않습니다.</p>
+  </div>
+</section>
 
 <aside class="rail" id="rail">
   <div class="brand">
@@ -27,10 +61,22 @@
     <button class="nav-item" data-view="review" type="button"><svg viewBox="0 0 24 24"><path d="M4 19V9m5.5 10V5M15 19v-7m5.5 7v-11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>돌아보기</span></button>
   </nav>
   <div class="rail-foot">
+    <div class="account-chip" id="accountChip" title="로그인 계정">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 19.5c1.6-3.4 4.4-5 7.5-5s5.9 1.6 7.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span id="accountEmail">—</span>
+    </div>
     <div class="sync-pill" id="syncPill" data-state="loading">불러오는 중…</div>
     <button class="ghost-btn" id="exportBtn" type="button">
       <svg viewBox="0 0 24 24"><path d="M12 3v10.5m0 0l-4-4m4 4l4-4M5 16v3.5A1.5 1.5 0 006.5 21h11a1.5 1.5 0 001.5-1.5V16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       내 자료보내기
+    </button>
+    <button class="ghost-btn" id="accountBtn" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.9-2.9l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.9-2.9l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.6h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.9 2.9l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.6 1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      계정 설정
+    </button>
+    <button class="ghost-btn" id="logoutBtn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M15 4h3.5A1.5 1.5 0 0120 5.5v13a1.5 1.5 0 01-1.5 1.5H15M10 8l-4 4 4 4M6 12h9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      로그아웃
     </button>
   </div>
 </aside>
@@ -45,13 +91,16 @@
       <button class="ghost-btn icon-only" id="exportBtnM" type="button" aria-label="내 자료보내기" title="내 자료보내기">
         <svg viewBox="0 0 24 24"><path d="M12 3v10.5m0 0l-4-4m4 4l4-4M5 16v3.5A1.5 1.5 0 006.5 21h11a1.5 1.5 0 001.5-1.5V16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <button class="ghost-btn icon-only" id="accountBtnM" type="button" aria-label="계정 설정" title="계정 설정">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 19.5c1.6-3.4 4.4-5 7.5-5s5.9 1.6 7.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
       <span class="sync-pill" id="syncPillM" data-state="loading">불러오는 중…</span>
     </div>
   </header>
 
-  <p class="public-notice" role="note">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 8h.01M12 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-    지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요.
+  <p class="public-notice lock-notice" role="note">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10.5V7.8a3.5 3.5 0 017 0v2.7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+    이 다이어리는 잠겨 있습니다 — 로그인한 본인의 기록만 열리고, 남의 기록은 서버가 거절합니다.
   </p>
 
   <main id="main" class="view-host" tabindex="-1">
@@ -79,6 +128,6 @@
 
 <div class="toast-zone" id="toastZone" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=3"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>

@@ -1,0 +1,85 @@
+{
+  "schema_id": "pds-schema-v3",
+  "extends": "pds-schema-v2 (과제6) — 6개 컬렉션은 그대로, 인증·소유·지표·규칙변경을 추가",
+  "storage": {
+    "engine": "Cloud Firestore (프로젝트 pds-diary-sterran, 데이터베이스 (default), 리전 asia-northeast3/서울)",
+    "endpoint": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/{uid}",
+    "shape": "계정 하나당 문서 하나. 문서 최상위 필드 owner·revokedAtSec·migrated_from·updated_at은 잠금/이주용, 다이어리 본문은 doc 필드(지도) 아래 6+3개 컬렉션 배열로 둠. 쓰기는 read → modify → PATCH(updateMask=doc,updated_at)로 직렬화해 다중 개체 변경도 한 번의 쓰기로 커밋된다.",
+    "access": "로그인 필수 — 보안 규칙 firestore.rules가 request.auth.uid와 문서 경로의 uid를 대조해 본인 문서만 읽기·쓰기를 허용한다. 남의 문서는 403 PERMISSION_DENIED, 로그인 없으면 거절, 컬렉션 list는 허용하지 않는다.",
+    "top_level_fields": {
+      "owner": "string — 문서 주인 uid (표시용; 판별은 경로·토큰 기준)",
+      "revokedAtSec": "integer — 마지막 무효화 시각(epoch 초). 로그아웃·비밀번호 변경 시 max(지금, 토큰 auth_time)으로 갱신. 규칙은 auth_time이 이 값보다 큰 토큰만 통과시킨다",
+      "migrated_from": "string|null — 'rtdb:/pds-diary-v1'이면 과제6 공개 문서에서 이주됨",
+      "migrated_at": "string ISO UTC|null",
+      "updated_at": "string ISO UTC"
+    }
+  },
+  "auth": {
+    "provider": "Firebase Authentication — 이메일/비밀번호 제공자 (REST identitytoolkit v1)",
+    "session": "signInWithPassword/refresh → idToken(JWT, 만료 1시간) + refreshToken. idToken은 메모리, refreshToken만 localStorage 'pds2-session'에 보관. 토큰은 Authorization: Bearer 헤더로만 이동 — 주소창·URL에 실리지 않는다",
+    "password_handling": "비밀번호는 Firebase가 scrypt 계열 해시+계정별 소금으로 보관 — 앱 소스·Firestore·Git 기록 어디에도 원문이 없다. 로그인 요청은 HTTPS 바디로만 간다",
+    "revocation": "로그아웃·비밀번호 변경 시 revokedAtSec를 찍는다. 규칙이 토큰의 auth_time과 비교해 이전에 발급된 값을 거절한다"
+  },
+  "timezone_rules": {
+    "dates": "YYYY-MM-DD 문자열, Asia/Seoul 기준",
+    "timestamps": "ISO 8601 UTC. 화면 표시는 항상 Asia/Seoul로 변환",
+    "delay_rule": "지연 = status가 done이 아니고 due_date가 KST 오늘보다 앞선 할 일",
+    "duration_unit": "시간 길이는 정수 분으로 저장하고 화면에서 'N시간 N분'으로 변환",
+    "week_start": "주 시작은 월요일 (Asia/Seoul). 돌아보기 '이번 주' 범위는 월~오늘"
+  },
+  "collections": {
+    "plans": "과제6와 동일 — 현재 계획 값",
+    "plan_revisions": "과제6와 동일 — rev 0(처음 계획)은 덮어쓰지 않는 수정 이력",
+    "tasks": "과제6와 동일 — deleted_at 소프트 삭제",
+    "executions": "과제6와 동일 — started_at/ended_at/actual_minutes/blocker_reason",
+    "completions": "과제6와 동일 — 멱등키 complete:<task_id> 유일",
+    "improvements": "과제6와 동일 — 돌아보기 한 줄",
+    "settings": {
+      "description": "5일 관찰 설정 객체(컬렉션이 아닌 단일 값). 1일차에 한 번 정한다",
+      "fields": {
+        "question": "string — 이 기간으로 답할 질문 한 문장",
+        "metric_name": "string — 지표 이름 (예: 집중 시간)",
+        "metric_unit": "string — 단위 (예: 분)",
+        "metric_rule": "string — 그 값을 어떻게 재는지(계산 규칙) 사람이 읽는 문장",
+        "plan_rule": "string — 계획을 세울 때 지키는 규칙. 변경은 반드시 rule_changes를 거친다",
+        "week_start": "'monday' — 주 시작 요일",
+        "locked_at": "ISO UTC — 1일차에 처음 저장한 시각"
+      }
+    },
+    "metric_entries": {
+      "description": "날짜별 지표 기록. 5일 사용의 재료.",
+      "fields": {
+        "id": "string, me_ 접두",
+        "date": "YYYY-MM-DD (KST) — 어느 날의 값인지",
+        "value": "number — 지표 값(정수, metric_unit)",
+        "note": "string — 메모",
+        "created_at": "ISO UTC — 입력 시각(중복 판별에 사용)"
+      }
+    },
+    "rule_changes": {
+      "description": "계획 규칙 변경 이력. 3일차에 들어가기 전(2일차 기록 뒤·3일차 기록 앞)에 정확히 한 건 온다.",
+      "fields": {
+        "id": "string, rc_ 접두",
+        "changed_at": "ISO UTC — 바꾼 시각",
+        "before": "string — 이전 규칙",
+        "after": "string — 새 규칙",
+        "reason": "string — 바꾼 이유",
+        "applies_from_date": "YYYY-MM-DD (KST) — 어느 날 기록부터 적용되는지"
+      }
+    }
+  },
+  "metric_aggregation_rules": {
+    "daily_pick": "같은 date에 기록이 두 건 이상이면 created_at이 가장 늦은 한 건만 유효. 이전 건들은 '덮어씀' 표시로만 남고 집계에서 빠진다 (중복 처리)",
+    "missing": "기록이 없는 날은 일별 표시 '—'. 합계에는 영향 없고 평균의 분모(기록 있는 날 수)에서도 제외 (빠진 값 처리)",
+    "outlier": "value가 0~1440(하루 분) 범위 밖이면 이상치로 표시하고 합계·평균에서 제외. 입력 시 1440 초과·음수·비수는 저장 거부 (튀는 값 처리)",
+    "rounding": "합계는 원본 정수 합. 평균은 합계 ÷ 유효 기록 일수를 소수 첫째 자리에서 반올림해 표시 (내부값은 원본 유지)",
+    "sum": "범위 안 유효 날짜들의 value 합",
+    "avg": "sum ÷ 유효 기록 일수 (빠진 날·이상치·덮어쓰인 건 제외 후)"
+  },
+  "aggregation_rules": "과제6와 동일 — plan_count·task_count·done_count·delayed_count·blocked_count·expected_sum·actual_sum·diff",
+  "migration": {
+    "source": "과제6 RTDB 문서 https://pds-diary-sterran-default-rtdb.firebaseio.com/pds-diary-v1.json (공개 읽기 유지 — 과제6 제출물 계약)",
+    "flow": "최초 로그인 뒤 diaries/{uid}가 없으면 소스를 읽어 doc 필드로 옮기고 owner·migrated_from·migrated_at를 쓴다. 이후 모든 읽기·쓰기는 본인 문서만",
+    "marker": "meta.migrated_from = 'rtdb:/pds-diary-v1' — 이주 사실이 자료 안에 남는다"
+  }
+}

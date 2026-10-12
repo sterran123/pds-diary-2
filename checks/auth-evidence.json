@@ -1,0 +1,735 @@
+[
+  {
+    "label": "A 가입 (새 계정 만들기)",
+    "request": {
+      "method": "POST",
+      "url": "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=API_KEY",
+      "body": {
+        "email": "pds-verify-a@test.dev",
+        "password": "••••••••…생략",
+        "returnSecureToken": true
+      }
+    },
+    "status": 200,
+    "response": {
+      "kind": "identitytoolkit#SignupNewUserResponse",
+      "idToken": "eyJhbGciO…생략",
+      "email": "pds-verify-a@test.dev",
+      "refreshToken": "AMf-vBw_j…생략",
+      "expiresIn": "3600",
+      "localId": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+    }
+  },
+  {
+    "label": "B 가입 (같은 비밀번호, 다른 이메일)",
+    "request": {
+      "method": "POST",
+      "url": "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=API_KEY",
+      "body": {
+        "email": "pds-verify-b@test.dev",
+        "password": "••••••••…생략",
+        "returnSecureToken": true
+      }
+    },
+    "status": 200,
+    "response": {
+      "kind": "identitytoolkit#SignupNewUserResponse",
+      "idToken": "eyJhbGciO…생략",
+      "email": "pds-verify-b@test.dev",
+      "refreshToken": "AMf-vBy48…생략",
+      "expiresIn": "3600",
+      "localId": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+    }
+  },
+  {
+    "label": "A 중복 가입 시도 → 거절",
+    "request": {
+      "method": "POST",
+      "url": "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=API_KEY",
+      "body": {
+        "email": "pds-verify-a@test.dev",
+        "password": "••••••••…생략",
+        "returnSecureToken": true
+      }
+    },
+    "status": 400,
+    "response": {
+      "error": {
+        "code": 400,
+        "message": "EMAIL_EXISTS",
+        "errors": [
+          {
+            "message": "EMAIL_EXISTS",
+            "domain": "global",
+            "reason": "invalid"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "label": "로그인: 아이디 맞고 비밀번호만 틀림",
+    "request": {
+      "method": "POST",
+      "url": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=API_KEY",
+      "body": {
+        "email": "pds-verify-a@test.dev",
+        "password": "••••••••…생략",
+        "returnSecureToken": true
+      }
+    },
+    "status": 400,
+    "response": {
+      "error": {
+        "code": 400,
+        "message": "INVALID_LOGIN_CREDENTIALS",
+        "errors": [
+          {
+            "message": "INVALID_LOGIN_CREDENTIALS",
+            "domain": "global",
+            "reason": "invalid"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "label": "로그인: 아이디 자체가 없음",
+    "request": {
+      "method": "POST",
+      "url": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=API_KEY",
+      "body": {
+        "email": "ghost@test.dev",
+        "password": "••••••••…생략",
+        "returnSecureToken": true
+      }
+    },
+    "status": 400,
+    "response": {
+      "error": {
+        "code": 400,
+        "message": "INVALID_LOGIN_CREDENTIALS",
+        "errors": [
+          {
+            "message": "INVALID_LOGIN_CREDENTIALS",
+            "domain": "global",
+            "reason": "invalid"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "label": "A 로그인 성공",
+    "status": 200,
+    "response": {
+      "idToken": "eyJhbGciO…생략",
+      "expiresIn": "3600",
+      "localId": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+    }
+  },
+  {
+    "label": "A: 내 문서 쓰기",
+    "request": {
+      "method": "PATCH",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": {
+        "fields": {
+          "owner": {
+            "stringValue": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+          },
+          "revokedAtSec": {
+            "integerValue": "0"
+          },
+          "doc": {
+            "mapValue": {
+              "fields": {
+                "tasks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "title": {
+                              "stringValue": "V6B5의 할 일"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "updated_at": {
+            "stringValue": "2026-10-12T01:18:01.884Z"
+          }
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "fields": {
+        "revokedAtSec": {
+          "integerValue": "0"
+        },
+        "owner": {
+          "stringValue": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:01.884Z"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "V6B5의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "createTime": "2026-10-12T01:18:01.850778Z",
+      "updateTime": "2026-10-12T01:18:01.850778Z"
+    }
+  },
+  {
+    "label": "B: 내 문서 쓰기",
+    "request": {
+      "method": "PATCH",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": {
+        "fields": {
+          "owner": {
+            "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+          },
+          "revokedAtSec": {
+            "integerValue": "0"
+          },
+          "doc": {
+            "mapValue": {
+              "fields": {
+                "tasks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "title": {
+                              "stringValue": "Cvgd의 할 일"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "updated_at": {
+            "stringValue": "2026-10-12T01:18:02.163Z"
+          }
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "fields": {
+        "revokedAtSec": {
+          "integerValue": "0"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:02.163Z"
+        },
+        "owner": {
+          "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "Cvgd의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "createTime": "2026-10-12T01:18:02.025968Z",
+      "updateTime": "2026-10-12T01:18:02.025968Z"
+    }
+  },
+  {
+    "label": "B: 내 문서 읽기(공격 전 건수 확인)",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": null
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "fields": {
+        "owner": {
+          "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+        },
+        "revokedAtSec": {
+          "integerValue": "0"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:02.163Z"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "Cvgd의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "createTime": "2026-10-12T01:18:02.025968Z",
+      "updateTime": "2026-10-12T01:18:02.025968Z"
+    }
+  },
+  {
+    "label": "A: 내 문서 읽기(공격 전 건수 확인)",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "fields": {
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "V6B5의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "owner": {
+          "stringValue": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:01.884Z"
+        },
+        "revokedAtSec": {
+          "integerValue": "0"
+        }
+      },
+      "createTime": "2026-10-12T01:18:01.850778Z",
+      "updateTime": "2026-10-12T01:18:01.850778Z"
+    }
+  },
+  {
+    "label": "A 토큰 → B 문서 읽기",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "A 토큰 → B 문서 쓰기(본문에 B를 주인으로 적음)",
+    "request": {
+      "method": "PATCH",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": {
+        "fields": {
+          "owner": {
+            "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+          },
+          "revokedAtSec": {
+            "integerValue": "0"
+          },
+          "doc": {
+            "mapValue": {
+              "fields": {
+                "tasks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "title": {
+                              "stringValue": "Cvgd의 할 일"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "updated_at": {
+            "stringValue": "2026-10-12T01:18:02.503Z"
+          }
+        }
+      }
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "A 토큰 → B 문서 삭제",
+    "request": {
+      "method": "DELETE",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "B 토큰 → A 문서 읽기",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "B 토큰 → A 문서 쓰기",
+    "request": {
+      "method": "PATCH",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": {
+        "fields": {
+          "owner": {
+            "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+          },
+          "revokedAtSec": {
+            "integerValue": "0"
+          },
+          "doc": {
+            "mapValue": {
+              "fields": {
+                "tasks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "title": {
+                              "stringValue": "Cvgd의 할 일"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "updated_at": {
+            "stringValue": "2026-10-12T01:18:02.676Z"
+          }
+        }
+      }
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "B 토큰 → A 문서 삭제",
+    "request": {
+      "method": "DELETE",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "토큰 없이 A 문서 읽기",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "A 토큰으로 diaries 컬렉션 목록(list)",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  },
+  {
+    "label": "B: 내 문서 읽기(공격 후 건수 확인)",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "body": null
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/Cvgd0au81qcQP43IsmOScmIRrZz1",
+      "fields": {
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:02.163Z"
+        },
+        "revokedAtSec": {
+          "integerValue": "0"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "Cvgd의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "owner": {
+          "stringValue": "Cvgd0au81qcQP43IsmOScmIRrZz1"
+        }
+      },
+      "createTime": "2026-10-12T01:18:02.025968Z",
+      "updateTime": "2026-10-12T01:18:02.025968Z"
+    }
+  },
+  {
+    "label": "A: 내 문서 읽기(공격 후 건수 확인)",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "fields": {
+        "owner": {
+          "stringValue": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:01.884Z"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "V6B5의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "revokedAtSec": {
+          "integerValue": "0"
+        }
+      },
+      "createTime": "2026-10-12T01:18:01.850778Z",
+      "updateTime": "2026-10-12T01:18:01.850778Z"
+    }
+  },
+  {
+    "label": "A 로그아웃 — 무효화 시각 기록",
+    "request": {
+      "method": "PATCH",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2?updateMask.fieldPaths=revokedAtSec",
+      "body": {
+        "fields": {
+          "revokedAtSec": {
+            "integerValue": "1791767882"
+          }
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "name": "projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "fields": {
+        "revokedAtSec": {
+          "integerValue": "1791767882"
+        },
+        "updated_at": {
+          "stringValue": "2026-10-12T01:18:01.884Z"
+        },
+        "doc": {
+          "mapValue": {
+            "fields": {
+              "tasks": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "title": {
+                            "stringValue": "V6B5의 할 일"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "owner": {
+          "stringValue": "V6B5Q71YXiXqAbwCvuPAsNExgkW2"
+        }
+      },
+      "createTime": "2026-10-12T01:18:01.850778Z",
+      "updateTime": "2026-10-12T01:18:02.642762Z"
+    }
+  },
+  {
+    "label": "같은 A 토큰으로 다시 읽기 → 거절돼야 함",
+    "request": {
+      "method": "GET",
+      "url": "https://firestore.googleapis.com/v1/projects/pds-diary-sterran/databases/(default)/documents/diaries/V6B5Q71YXiXqAbwCvuPAsNExgkW2",
+      "body": null
+    },
+    "status": 403,
+    "response": {
+      "error": {
+        "code": 403,
+        "message": "Missing or insufficient permissions.",
+        "status": "PERMISSION_DENIED"
+      }
+    }
+  }
+]

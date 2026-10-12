@@ -1,4 +1,4 @@
-﻿import * as Store from './store.js?v=3';
+﻿import * as Store from './store.js?v=4';
 
 const $ = id => document.getElementById(id);
 const main = $('main');
@@ -138,6 +138,12 @@ function reviewRangeDates() {
     const d = new Date(); d.setDate(d.getDate() - 6);
     return [todayKST(d), today];
   }
+  if (state.reviewRange === 'week') {
+    // 주 시작 = 월요일 (계약 week_start='monday', Asia/Seoul)
+    const d = new Date(`${today}T12:00:00+09:00`);
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    return [todayKST(d), today];
+  }
   if (state.reviewRange === 'month') return [`${today.slice(0, 8)}01`, today];
   if (state.reviewRange === 'custom' && state.reviewFrom && state.reviewTo) return [state.reviewFrom, state.reviewTo];
   return [null, null];
@@ -237,46 +243,47 @@ const addImprovement = (text, start, end) => mutate(doc => {
   doc.improvements.push({ id: uid('im'), text, period_start: start, period_end: end, applied_plan_id: null, created_at: nowIso() });
 }, '돌아보기 한 줄을 남겼습니다');
 
-/* ── 시드 — 내가 실제로 하고 있는 일(T06 과제 진행) ── */
-function seedDoc() {
-  const d = '2026-10-08';
-  const now = nowIso();
-  const plan = {
-    id: 'pl_t06', title: 'T06 플랜두씨 다이어리 완성·제출',
-    period_start: d, period_end: '2026-10-10', priority: 5,
-    success_criteria: '공개 URL에서 계획→기록→돌아보기 전 흐름이 동작하고 제출 폼에 결과물·소스를 등록한다',
-    expected_minutes: 540, status: 'active', carryover_note: null,
-    created_at: `${d}T08:00:00.000Z`, updated_at: now, current_rev: 0
-  };
-  const tasks = [
-    { id: 'tk_store', title: '가입 없는 서버 저장소 조사·선정', due_date: '2026-10-07', priority: 5, tags: ['인프라', '조사'], expected_minutes: 60 },
-    { id: 'tk_ui', title: '4개 탭 화면 설계·반응형 UI 구현', due_date: d, priority: 5, tags: ['프론트', '디자인'], expected_minutes: 200 },
-    { id: 'tk_repo', title: 'GitHub 저장소 생성·Pages 배포 연결', due_date: d, priority: 4, tags: ['인프라', '배포'], expected_minutes: 40 },
-    { id: 'tk_review', title: '돌아보기 집계·근거 기록 드릴다운 구현', due_date: '2026-10-09', priority: 4, tags: ['데이터', '프론트'], expected_minutes: 90 },
-    { id: 'tk_verify', title: 'XSS·비밀값·새로고침 지속성 자체 검증', due_date: '2026-10-09', priority: 3, tags: ['검증'], expected_minutes: 45 },
-    { id: 'tk_submit', title: 'SUBMISSION 문서·제출 폼 작성', due_date: '2026-10-09', priority: 4, tags: ['문서', '제출'], expected_minutes: 30 },
-    { id: 'tk_req', title: '과제 요구사항 정독·통과 기준 추출', due_date: '2026-10-07', priority: 3, tags: ['문서', '조사'], expected_minutes: 25 },
-    { id: 'tk_xss', title: '스크립트 모양 글자 표시 점검 — <script>alert(1)</script> 이 그대로 보이면 통과', due_date: '2026-10-09', priority: 2, tags: ['검증', '보안'], expected_minutes: 15 }
-  ].map(t => ({ status: 'todo', completed_at: null, deleted_at: null, plan_id: plan.id, created_at: now, updated_at: now, ...t }));
-  tasks[0].status = 'done';
-  tasks[0].completed_at = '2026-10-08T08:45:00.000Z';
-  const executions = [
-    { id: 'ex_1', task_id: 'tk_store', started_at: '2026-10-08T08:05:00.000Z', ended_at: '2026-10-08T08:20:00.000Z', actual_minutes: 15, blocker_reason: '', created_at: now },
-    { id: 'ex_2', task_id: 'tk_store', started_at: '2026-10-08T08:20:00.000Z', ended_at: '2026-10-08T08:45:00.000Z', actual_minutes: 25, blocker_reason: 'kvdb.io가 이메일 인증을 요구해 대안 서비스를 추가로 조사했다', created_at: now },
-    { id: 'ex_3', task_id: 'tk_repo', started_at: '2026-10-08T08:25:00.000Z', ended_at: '2026-10-08T08:30:00.000Z', actual_minutes: 5, blocker_reason: '', created_at: now }
-  ];
-  const doc = Store.emptyDoc();
-  doc.meta.seeded = true;
-  doc.completions.push({ key: 'complete:tk_store', task_id: 'tk_store', completed_at: '2026-10-08T08:45:00.000Z' });
-  doc.plans.push(plan);
-  doc.plan_revisions.push({
-    id: 'rev_t06_0', plan_id: plan.id, rev_no: 0, edited_at: plan.created_at, note: '처음 세운 계획',
-    title: plan.title, period_start: plan.period_start, period_end: plan.period_end,
-    priority: plan.priority, success_criteria: plan.success_criteria, expected_minutes: plan.expected_minutes
-  });
-  doc.tasks.push(...tasks);
-  doc.executions.push(...executions);
-  return doc;
+/* ── 지표·계획 규칙 변경 연산 ──────────────── */
+const setSettings = fields => mutate(doc => {
+  doc.settings = { ...(doc.settings || {}), ...fields };
+}, '지표 설정을 저장했습니다');
+
+const addMetricEntry = fields => mutate(doc => {
+  doc.metric_entries.push({ id: uid('me'), created_at: nowIso(), ...fields });
+}, '지표를 기록했습니다');
+
+// 계획 규칙 변경은 반드시 이 경로로만 — 변경 시각·이유·전후가 rule_changes에 남는다
+const changePlanRule = (after, reason, appliesFrom) => mutate(doc => {
+  const before = doc.settings?.plan_rule || '';
+  doc.rule_changes.push({ id: uid('rc'), changed_at: nowIso(), before, after, reason, applies_from_date: appliesFrom });
+  doc.settings = { ...(doc.settings || {}), plan_rule: after };
+}, '계획 규칙을 바꿨습니다 — 변경이 이력에 남았습니다');
+
+/* ── 지표 집계 (계약 contracts/pds-schema-v3.json의 규칙을 그대로 구현) ──
+   - 빠진 값: 기록 없는 날은 '—'로 표시, 합계·평균의 분모에서 제외
+   - 중복 값: 같은 날짜에 두 건 이상이면 created_at이 가장 늦은 한 건만 쓰고 나머지는 집계 제외
+   - 튀는 값: 0~1440(하루 분) 밖 값은 이상치로 표시하고 집계에서 제외(입력 시에도 거부)
+   - 반올림: 평균은 소수 첫째 자리 반올림으로 표시, 합계는 정수
+   - 주 시작: 월요일 (Asia/Seoul, week_start='monday') */
+function metricDaily(doc) {
+  const byDate = new Map();
+  for (const m of [...doc.metric_entries].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+    const prev = byDate.get(m.date);
+    byDate.set(m.date, { entry: m, superseded: (prev?.superseded || 0) + (prev ? 1 : 0) });
+  }
+  return [...byDate.entries()].map(([date, o]) => ({
+    date, value: o.entry.value, note: o.entry.note,
+    outlier: !(Number.isFinite(o.entry.value) && o.entry.value >= 0 && o.entry.value <= 1440),
+    superseded: o.superseded
+  })).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function metricAgg(doc, start, end) {
+  const rows = metricDaily(doc).filter(m => (!start || m.date >= start) && (!end || m.date <= end));
+  const valid = rows.filter(r => !r.outlier);
+  const sum = valid.reduce((s, r) => s + r.value, 0);
+  const avg = valid.length ? Math.round((sum / valid.length) * 10) / 10 : null;
+  return { rows, sum, avg, n: valid.length };
 }
 
 /* ── 뷰: 계획 ─────────────────────────────────── */
@@ -291,6 +298,24 @@ function viewPlans() {
   add.addEventListener('click', () => planModal(null));
   head.append(hWrap, add);
   host.append(head);
+
+  // 현재 계획 규칙 — 변경은 rule_changes 이력으로 남는다
+  const s = doc.settings;
+  if (s?.plan_rule) {
+    const rc = el('div', 'card rule-card');
+    rc.append(el('div', 'metric-q', '현재 계획 규칙'));
+    rc.append(el('div', 'rule-now', s.plan_rule));
+    const last = doc.rule_changes.at(-1);
+    const meta = el('div', 'rule-meta');
+    meta.textContent = last
+      ? `${fmtDT(last.changed_at)}에 변경 — ${last.reason || ''} (${fmtDate(last.applies_from_date)}부터 적용)`
+      : '아직 바꾼 적 없음';
+    const chBtn = el('button', 'btn tiny secondary', '규칙 바꾸기');
+    chBtn.addEventListener('click', ruleChangeModal);
+    meta.append(' ', chBtn);
+    rc.append(meta);
+    host.append(rc);
+  }
 
   const grid = el('div', 'plan-grid');
   const plans = [...doc.plans].sort((a, b) => b.priority - a.priority || a.created_at.localeCompare(b.created_at));
@@ -547,6 +572,53 @@ function viewLog() {
   head.append(hWrap, add);
   host.append(head);
 
+  // 오늘의 지표 — 5일 기록의 재료. 날짜별 한 건이 집계에 쓰인다(중복은 최신 건만).
+  const s = doc.settings;
+  const mc = el('div', 'card metric-card');
+  if (!s) {
+    mc.append(el('div', 'metric-name', '지표 설정이 필요합니다'));
+    const b = el('button', 'btn secondary', '지금 설정하기');
+    b.addEventListener('click', () => settingsModal(true));
+    mc.append(b);
+  } else {
+    const mh = el('div', 'metric-head');
+    const left = el('div');
+    left.append(el('div', 'metric-q', s.question || ''), el('div', 'metric-name', `${s.metric_name} (${s.metric_unit})`));
+    const setB = el('button', 'btn tiny secondary', '지표 설정');
+    setB.addEventListener('click', () => settingsModal(false));
+    mh.append(left, setB);
+    mc.append(mh);
+
+    const form = el('div', 'metric-form');
+    const dateI = inputEl({ type: 'date', value: todayKST() });
+    const valI = inputEl({ type: 'number', min: 0, max: 1440, step: 1, placeholder: '0' });
+    const noteI = inputEl({ placeholder: '메모 (선택)' });
+    const saveB = el('button', 'btn', '기록');
+    form.append(field('날짜 (KST)', dateI), field(`값 (${s.metric_unit})`, valI), field('메모', noteI), saveB);
+    saveB.addEventListener('click', async () => {
+      const v = Number(valI.value);
+      if (!dateI.value) return toast('날짜를 고르세요', true);
+      if (!Number.isFinite(v) || v < 0) return toast('값을 입력하세요', true);
+      if (v > 1440) return toast(`${s.metric_unit} 값이 하루 범위(1440)를 넘습니다 — 이상치는 집계에서 빠집니다`, true);
+      await addMetricEntry({ date: dateI.value, value: Math.round(v), note: noteI.value.trim() });
+    });
+    mc.append(form);
+
+    const recent = metricDaily(doc).slice(-5).reverse();
+    if (recent.length) {
+      const ul = el('div');
+      for (const m of recent) {
+        const row = el('div', `metric-entry${m.outlier ? ' outlier' : ''}`);
+        row.append(el('span', 'd', fmtDate(m.date)), el('span', 'v', m.outlier ? `${m.value} — 이상치(집계 제외)` : `${m.value}${s.metric_unit}`));
+        if (m.note) row.append(el('span', 'n', m.note));
+        if (m.superseded) row.append(el('span', 'dup', `이전 ${m.superseded}건 덮어씀`));
+        ul.append(row);
+      }
+      mc.append(ul);
+    }
+  }
+  host.append(mc);
+
   const list = el('div', 'exec-list');
   const execs = [...doc.executions].sort((a, b) => b.started_at.localeCompare(a.started_at));
   if (!execs.length) list.append(emptyState('실행 기록이 없습니다. 일을 마친 뒤 기록을 남겨 보세요.'));
@@ -613,7 +685,7 @@ function viewReview() {
   host.append(head);
 
   const tabs = el('div', 'range-tabs');
-  for (const [v, label] of [['all', '전체'], ['7d', '최근 7일'], ['month', '이번 달'], ['custom', '직접 고르기']]) {
+  for (const [v, label] of [['all', '전체'], ['week', '이번 주'], ['7d', '최근 7일'], ['month', '이번 달'], ['custom', '직접 고르기']]) {
     const c = el('button', `chip selectable${state.reviewRange === v ? ' on' : ''}`, label);
     c.addEventListener('click', () => { state.reviewRange = v; render(); });
     tabs.append(c);
@@ -668,6 +740,24 @@ function viewReview() {
     stat('막힘 (이유가 적힌 할 일)', `${a.blockedIds.size}<small> 개</small>`, 'warn', openBlockedDrill),
     stat('예상 vs 실제', `${fmtMin(a.actual)} <small>/ ${fmtMin(a.expected)}</small>`, a.diff > 0 ? 'warn' : 'good', openTimeDrill, `차이 ${a.diff >= 0 ? '+' : '−'}${fmtMin(Math.abs(a.diff))} →`)
   );
+
+  // 지표 합계·평균 — 범위 안의 날짜별 기록을 계약 규칙(빠짐 제외·중복 최신·이상치 제외·소수 첫째 반올림)으로 집계
+  const s = doc.settings;
+  if (s) {
+    const ma = metricAgg(doc, start, end);
+    const openMetricDrill = () => {
+      const rows = ma.rows.map(m => `${fmtDate(m.date)} — ${m.outlier ? `이상치 ${m.value}(집계 제외)` : `${m.value}${s.metric_unit}`}${m.superseded ? ` · 이전 ${m.superseded}건 덮어씀` : ''}${m.note ? ` · ${m.note}` : ''}`);
+      drillModal(`${s.metric_name} — 이 숫자가 나온 기록`, [
+        `합계: ${ma.sum}${s.metric_unit} (유효 기록 ${ma.n}일)`, 
+        `평균: ${ma.avg ?? '—'}${s.metric_unit} = 합계 ÷ 기록 있는 날 수, 소수 첫째 자리 반올림`,
+        `빠진 날은 '—'로 표시하고 분모에서 뺍니다 · 같은 날 중복은 최신 건만 · 0~1440 밖은 이상치로 제외`,
+        '', ...rows]);
+    };
+    grid.append(
+      stat(`${s.metric_name} 합계`, `${ma.sum}<small> ${s.metric_unit}</small>`, 'accent', openMetricDrill, `기록 ${ma.n}일 →`),
+      stat(`${s.metric_name} 평균`, `${ma.avg ?? '—'}<small> ${s.metric_unit}/일</small>`, 'good', openMetricDrill, '손으로 더해 맞춰 보세요 →')
+    );
+  }
   host.append(grid);
 
   const sec = el('div', 'section-label'); sec.textContent = '다음 계획으로 넘길 한 줄';
@@ -686,6 +776,23 @@ function viewReview() {
   bRow.append(impBtn);
   box.append(bRow);
   host.append(box);
+
+  // 계획 규칙 변경 이력 — 언제·왜·무엇에서 무엇으로 바꿨는지
+  if (doc.rule_changes.length) {
+    const sr = el('div', 'section-label'); sr.textContent = '계획 규칙 변경 이력';
+    host.append(sr);
+    const rc = el('div', 'card rule-card');
+    for (const c of [...doc.rule_changes].sort((a, b) => b.changed_at.localeCompare(a.changed_at))) {
+      const item = el('div', 'rule-change-item');
+      item.append(el('div', 'at', `${fmtDT(c.changed_at)} 변경 · ${fmtDate(c.applies_from_date)}부터 적용`));
+      const arrow = el('div', 'arrow');
+      arrow.append(el('s', '', c.before || '(없음)'), document.createTextNode(' → '), el('b', '', c.after));
+      item.append(arrow);
+      if (c.reason) item.append(el('div', 'reason', `이유: ${c.reason}`));
+      rc.append(item);
+    }
+    host.append(rc);
+  }
 
   const imps = [...doc.improvements].sort((x, y) => y.created_at.localeCompare(x.created_at));
   if (imps.length) {
@@ -743,6 +850,122 @@ function planFromImprovement(im) {
   });
 }
 
+/* ── 지표 설정 / 규칙 변경 / 계정 모달 ───────── */
+function settingsModal(required) {
+  const s = state.doc?.settings;
+  openModal(required ? '지표 설정 — 이 5일에 쓸 기준을 한 번 정합니다' : '지표 설정', sheet => {
+    const q = inputEl({ value: s?.question || '', placeholder: '예: 매일 아침 두 시간 블록을 정하면 집중 시간이 늘까?' });
+    const mn = inputEl({ value: s?.metric_name || '', placeholder: '예: 집중 시간' });
+    const mu = inputEl({ value: s?.metric_unit || '분' });
+    const mr = inputEl({ value: s?.metric_rule || '', placeholder: '예: 하루 동안 실제로 몰두해 일한 시간의 합(분)' });
+    const pr = inputEl({ value: s?.plan_rule || '', placeholder: '예: 하루에 새로 시작하는 할 일은 3개까지' });
+    const ws = selectEl([['monday', '월요일'], ['sunday', '일요일']], s?.week_start || 'monday');
+    sheet.append(
+      field('이 기간으로 답할 질문 한 문장', q),
+      field('지표 이름', mn),
+      field('단위', mu),
+      field('계산 규칙 — 그 값을 어떻게 재는지', mr),
+      field('주 시작 요일', ws)
+    );
+    if (!s) sheet.append(field('계획 규칙 — 계획을 세울 때 지키는 규칙 (이후 변경은 이력에 남습니다)', pr));
+    if (s) {
+      const note = el('p', 'rule-meta', '계획 규칙 변경은 계획 탭의 "규칙 바꾸기"에서만 — 변경이력이 남기 위해 따로 둡니다.');
+      sheet.append(note);
+    }
+    const acts = el('div', 'form-actions');
+    if (!required) { const cancel = el('button', 'btn secondary', '취소'); cancel.addEventListener('click', closeModal); acts.append(cancel); }
+    const save = el('button', 'btn', '저장');
+    save.addEventListener('click', async () => {
+      const fields = {
+        question: q.value.trim(), metric_name: mn.value.trim(), metric_unit: mu.value.trim() || '분',
+        metric_rule: mr.value.trim(), week_start: ws.value,
+        ...(s ? {} : { plan_rule: pr.value.trim(), locked_at: nowIso() })
+      };
+      if (!fields.question || !fields.metric_name || (!s && !fields.plan_rule)) return toast('질문·지표·계획 규칙은 비울 수 없습니다', true);
+      closeModal();
+      await setSettings(fields);
+    });
+    acts.append(save);
+    sheet.append(acts);
+  });
+}
+
+function ruleChangeModal() {
+  const s = state.doc?.settings;
+  openModal('계획 규칙 바꾸기 — 변경이 이력에 남습니다', sheet => {
+    sheet.append(el('p', 'rule-now', `현재: ${s?.plan_rule || '(없음)'}`));
+    const after = document.createElement('textarea'); after.rows = 2; after.placeholder = '새 규칙 — 예: 하루에 새로 시작하는 할 일은 2개까지';
+    const reason = document.createElement('textarea'); reason.rows = 2; reason.placeholder = '왜 바꾸나요? — 기록에 그대로 남습니다';
+    const apply = inputEl({ type: 'date', value: todayKST() });
+    sheet.append(field('새 규칙', after), field('바꾸는 이유', reason), field('적용 시작일 (KST)', apply));
+    const acts = el('div', 'form-actions');
+    const cancel = el('button', 'btn secondary', '취소'); cancel.addEventListener('click', closeModal);
+    const save = el('button', 'btn', '바꾸기(이력에 남김)');
+    save.addEventListener('click', async () => {
+      if (!after.value.trim()) return toast('새 규칙을 입력하세요', true);
+      if (!reason.value.trim()) return toast('바꾸는 이유를 적어 주세요', true);
+      closeModal();
+      await changePlanRule(after.value.trim(), reason.value.trim(), apply.value || todayKST());
+    });
+    acts.append(cancel, save);
+    sheet.append(acts);
+  });
+}
+
+function accountModal() {
+  const user = Store.currentUser();
+  openModal('계정', sheet => {
+    const chip = el('div', 'account-chip');
+    chip.append(el('span', '', user?.email || ''));
+    sheet.append(chip);
+    sheet.append(el('p', 'rule-meta', `UID ${user?.uid || '—'} · 이 값이 서버 규칙의 본인 확인에 쓰입니다`));
+
+    const pw1 = inputEl({ type: 'password', placeholder: '새 비밀번호 (6자 이상)', autocomplete: 'new-password', minlength: 6 });
+    const pw2 = inputEl({ type: 'password', placeholder: '새 비밀번호 확인', autocomplete: 'new-password' });
+    const pwBtn = el('button', 'btn secondary', '비밀번호 바꾸기');
+    sheet.append(field('비밀번호 바꾸기 — 바꾸면 지금 세션도 끊기고 다시 로그인합니다', pw1), field('확인', pw2), pwBtn);
+    pwBtn.addEventListener('click', async () => {
+      if (pw1.value.length < 6) return toast('6자 이상으로 정하세요', true);
+      if (pw1.value !== pw2.value) return toast('두 비밀번호가 다릅니다', true);
+      pwBtn.disabled = true;
+      try {
+        const t = await Store.ensureToken();
+        await Store.changePassword(t, pw1.value);
+        await Store.signOut(); // 이전에 발급된 값들을 무효화 시각으로 끊는다
+        location.reload();
+      } catch (e) {
+        pwBtn.disabled = false;
+        toast(e.code === 'TOKEN_EXPIRED' || e.code === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN'
+          ? '오래 전에 로그인했습니다 — 다시 로그인한 뒤 바꿔 주세요' : `바꾸지 못했습니다 (${e.code || e.message})`, true);
+      }
+    });
+
+    const dz = el('div', 'card danger-zone');
+    dz.style.marginTop = '18px';
+    dz.append(el('div', 'metric-name', '계정 삭제'));
+    dz.append(el('p', 'rule-meta', '계정을 지우면 내 자료 문서도 함께 지워집니다. 되돌릴 수 없습니다.'));
+    const pwD = inputEl({ type: 'password', placeholder: '확인을 위해 현재 비밀번호 입력', autocomplete: 'current-password' });
+    const delBtn = el('button', 'btn danger', '내 계정과 자료를 모두 지우기');
+    dz.append(field('현재 비밀번호', pwD), delBtn);
+    delBtn.addEventListener('click', async () => {
+      if (!pwD.value) return toast('현재 비밀번호를 입력하세요', true);
+      delBtn.disabled = true;
+      try {
+        const user = Store.currentUser();
+        const fresh = await Store.signIn(user.email, pwD.value); // 재인증 — 삭제는 최근 로그인이 필요하다
+        await Store.deleteMyData();
+        await Store.deleteAuthAccount(fresh.idToken);
+        Store.clearLocalSession?.();
+        location.reload();
+      } catch (e) {
+        delBtn.disabled = false;
+        toast(`지우지 못했습니다 (${e.code || e.message})`, true);
+      }
+    });
+    sheet.append(dz);
+  });
+}
+
 function drillModal(title, rows) {
   openModal(title, sheet => {
     const list = el('div', 'drill-list');
@@ -777,9 +1000,9 @@ for (const b of document.querySelectorAll('.nav-item')) {
 }
 
 $('fab').addEventListener('click', () => {
-  if (state.view === 'tasks') taskModal(null);
-  else if (state.view === 'log') execModal(null);
-  else if (state.view === 'review') { state.view = 'plans'; render(); }
+  if (state.view === 'tasks') return taskModal(null);
+  if (state.view === 'log') return execModal(null);
+  if (state.view === 'review') { state.view = 'plans'; render(); }
   planModal(null);
 });
 
@@ -798,18 +1021,86 @@ const exportData = async () => {
 $('exportBtn').addEventListener('click', exportData);
 $('exportBtnM').addEventListener('click', exportData);
 
+/* ── 인증 게이트 ─────────────────────────────
+   body.locked로 시작한다 → 첫 화면은 항상 로그인.
+   세션(저장된 refreshToken)이 살아 있으면 곧바로 앱으로 들어간다. */
+const authError = $('authError');
+let authMode = 'login';
+
+function setAuthMode(m) {
+  authMode = m;
+  $('tabLogin').classList.toggle('on', m === 'login');
+  $('tabSignup').classList.toggle('on', m === 'signup');
+  $('tabLogin').setAttribute('aria-selected', String(m === 'login'));
+  $('tabSignup').setAttribute('aria-selected', String(m === 'signup'));
+  $('authSubmit').textContent = m === 'login' ? '로그인' : '계정 만들기';
+  $('authPassword').setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
+  authError.hidden = true;
+}
+$('tabLogin').addEventListener('click', () => setAuthMode('login'));
+$('tabSignup').addEventListener('click', () => setAuthMode('signup'));
+
+function authFail(msg) { authError.textContent = msg; authError.hidden = false; }
+const GENERIC_AUTH_FAIL = '이메일 또는 비밀번호가 올바르지 않습니다';
+// 로그인 실패 문구는 하나다 — '없는 아이디'와 '비밀번호만 틀림'을 구분해 알려주지 않는다
+$('authForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim(), pw = $('authPassword').value;
+  if (!email || pw.length < 6) return authFail('이메일과 비밀번호(6자 이상)를 입력하세요');
+  const btn = $('authSubmit');
+  btn.disabled = true;
+  try {
+    if (authMode === 'login') await Store.signIn(email, pw);
+    else await Store.signUp(email, pw);
+    enterApp();
+  } catch (err) {
+    if (authMode === 'signup' && err.code === 'EMAIL_EXISTS') authFail('이미 가입된 이메일입니다 — 로그인해 주세요');
+    else if (String(err.code || '').includes('TOO_MANY_ATTEMPTS')) authFail('시도가 너무 많습니다 — 잠시 뒤 다시 시도하세요');
+    else if (authMode === 'signup' && err.code === 'INVALID_EMAIL') authFail('이메일 형식을 확인하세요');
+    else authFail(GENERIC_AUTH_FAIL);
+  } finally { btn.disabled = false; }
+});
+
+function forceLock(note) {
+  state.doc = null;
+  document.body.classList.add('locked');
+  if (note) authFail(note);
+}
+
+async function enterApp() {
+  document.body.classList.remove('locked');
+  authError.hidden = true;
+  $('accountEmail').textContent = Store.currentUser()?.email || '';
+  setSync('loading', '불러오는 중…');
+  await boot();
+}
+
+$('logoutBtn').addEventListener('click', async () => {
+  await Store.signOut(); // 문서에 무효화 시각을 찍고 로컬 세션 삭제 → 같은 토큰은 이제 거절된다
+  location.reload();
+});
+$('accountBtn').addEventListener('click', accountModal);
+$('accountBtnM').addEventListener('click', accountModal);
+
+// 다른 곳에서 로그아웃·비번변경해 이 토큰이 죽으면 다음 서버 호출이 거절된다 → 잠금 화면으로
+Store.setSessionLostHandler(() => forceLock('세션이 끊겼습니다 — 다시 로그인하세요'));
+
 async function boot() {
   setSync('loading', '불러오는 중…');
   try {
     let doc = await Store.loadDoc();
-    if (!doc || (!doc.plans.length && !doc.tasks.length && !doc.executions.length)) {
-      setSync('saving', '처음 자료를 싣는 중…');
-      await Store.saveDoc(seedDoc());
-      doc = await Store.loadDoc();
+    let migrated = false;
+    if (!doc) {
+      // 첫 로그인 — 6번 과제 공개 자료를 내 계정으로 옮긴다(없으면 빈 문서)
+      setSync('saving', '이전 자료를 가져오는 중…');
+      try { doc = await Store.migrateLegacy(); migrated = true; }
+      catch (e2) { console.warn('이주 실패, 빈 문서로 시작', e2); doc = await Store.createFreshDoc(); }
     }
     state.doc = doc;
     setSync('ok', '동기화됨');
     render();
+    if (migrated) toast('6번 과제 자료를 내 계정으로 옮겼습니다');
+    if (!state.doc.settings) settingsModal(true); // 1일차 설정이 없으면 먼저 고른다
   } catch (err) {
     console.error(err);
     setSync('err', '연결 실패');
@@ -822,4 +1113,14 @@ async function boot() {
     main.append(e);
   }
 }
-boot();
+
+// 부팅 — 저장된 세션이 있으면 곧바로 앱, 아니면 locked(로그인 화면) 그대로
+(async () => {
+  try {
+    const user = await Store.restoreSession();
+    if (user) await enterApp();
+  } catch (e) {
+    console.warn('세션 복원 실패', e);
+    Store.clearLocalSession();
+  }
+})();
